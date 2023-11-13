@@ -33,6 +33,7 @@ List<DiyProject> dummyProjects = [
           "https://parents.azureedge.net/sites/default/files/public/styles/large/public/2022-07/parenting0001_012.jpg?itok=hsio6iOG",
       ageGroup: "all",
       craftingTimeInMinute: "40"),
+
   // Add more dummy projects as needed
   DiyProject(
       title: 'Pompom Ice Pops',

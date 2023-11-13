@@ -3,7 +3,6 @@ import 'package:flutter_diy_assistant/constants/constants.dart';
 import 'package:flutter_diy_assistant/providers/chat_provider.dart';
 import 'package:flutter_diy_assistant/providers/models_provider.dart';
 import 'package:flutter_diy_assistant/screens/chat_screen.dart';
-import 'package:flutter_diy_assistant/screens/command_screen.dart';
 import 'package:flutter_diy_assistant/screens/home_screen.dart';
 import 'package:provider/provider.dart';
 
@@ -30,10 +29,20 @@ class MyApp extends StatelessWidget {
         title: 'Flutter ChatBOT',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-            scaffoldBackgroundColor: scaffoldBackgroundColor,
-            appBarTheme: AppBarTheme(
-              color: cardColor,
-            )),
+          scaffoldBackgroundColor: scaffoldBackgroundColor,
+          appBarTheme: AppBarTheme(
+            color: cardColor,
+          ),
+          textTheme: const TextTheme(
+            bodyLarge: TextStyle(
+              // Example: Change the default font to Roboto
+              fontFamily: 'Roboto', // Update with the desired font family
+              fontSize: 28, // Adjust as needed
+              color: Colors.white, // Set the default text color
+              // Additional text styling properties
+            ),
+          ),
+        ),
         home: const AppMainScreen(),
       ),
     );
@@ -50,11 +59,7 @@ class AppMainScreen extends StatefulWidget {
 class _AppMainScreenState extends State<AppMainScreen> {
   int _currentIndex = 0; // Index to track the selected tab
 
-  final List<Widget> _screens = [
-    const Homescreen(),
-    const ChatScreen(),
-    const CommandScreen(), // Include the Homescreen widget here
-  ];
+  final List<Widget> _screens = [const Homescreen(), const ChatScreen()];
 
   @override
   Widget build(BuildContext context) {
@@ -74,13 +79,9 @@ class _AppMainScreenState extends State<AppMainScreen> {
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.chat), // Icon for the ChatScreen
-            label: 'Chat',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.mic), // Icon for the ChatScreen
-            label: 'Command',
-          ),
+            icon: Icon(Icons.create), // Icon for the ChatScreen
+            label: 'Generate',
+          )
         ],
       ),
     );

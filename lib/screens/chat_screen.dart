@@ -48,11 +48,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       appBar: AppBar(
         elevation: 2,
-        leading: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Image.asset(AssetManager.openaiLogo),
-        ),
-        title: const Text("ChatGPT"),
+        title: const Text("Generate DIY projects"),
         actions: [
           IconButton(
             onPressed: () async {
@@ -106,7 +102,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         //       chatProvider: chatProvider);
                         // },
                         decoration: const InputDecoration.collapsed(
-                            hintText: "How can I help you",
+                            hintText: "Generate a DIY project",
                             hintStyle: TextStyle(color: Colors.grey)),
                       ),
                     ),
@@ -164,7 +160,7 @@ class _ChatScreenState extends State<ChatScreen> {
     // }
     try {
       String msg =
-          "Generate a do-it-yourself project idea involving [fantasy,outside use]. Ensure the project includes the following details: Title<String>(Suggest a chatchy and descriptive title for the project), Description<String>(Provide a brief overview or summary of the project's purpose and goal.), Materials<List<String>>(List all the required materials and tools for this project), Instructions<List<String>>(Offer step-by-step instructions on how to complete the project.), TimeToMake<String>(Specify the estimated time need to finish in minutes. ex. 30min ), AgeGroup<String>(Mention the suitable age group or skill level for this project. ex. (all ages, 2 to 5 year)). Your help in providing this comprehensive and well-structured DIY project guide is greatly appreciated. Thank you!";
+          "Generate a do-it-yourself project. Already place this in a formatted object structure. Ensure the project always includes the following details: Title<String>(Suggest a chatchy and descriptive title for the project), Description<String>(Provide a brief overview or summary of the project's purpose and goal.), Materials<List<String>>(List all the required materials and tools for this project), Instructions<List<String>>(Offer step-by-step instructions on how to complete the project.), TimeToMake<String>(Specify the estimated time need to finish in minutes. ex. 30min ), AgeGroup<String>(Mention the suitable age group or skill level for this project. ex. (all ages, 2 to 5 year)).";
       setState(() {
         _isTyping = true;
         // chatList.add(ChatModel(msg: textEditingController.text, chatIndex: 0));

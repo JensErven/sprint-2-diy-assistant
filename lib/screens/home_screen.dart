@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_diy_assistant/constants/constants.dart';
 import 'package:flutter_diy_assistant/models/diy_project.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:speech_to_text/speech_to_text.dart';
 
@@ -16,30 +18,126 @@ class Homescreen extends StatefulWidget {
   State<Homescreen> createState() => _HomescreenState();
 }
 
-class _HomescreenState extends State<Homescreen> {
+class _HomescreenState extends State<Homescreen>
+    with SingleTickerProviderStateMixin {
+  late List<DiyProject> _projects = [];
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProjects();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadProjects() async {
+    List<DiyProject> loadedProjects = await loadProjectsFromStorage();
+    setState(() {
+      _projects = loadedProjects;
+    });
+  }
+
+  Future<List<DiyProject>> loadProjectsFromStorage() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String>? projectStrings = prefs.getStringList('projects');
+
+    if (projectStrings == null || projectStrings.isEmpty) {
+      return [];
+    }
+
+    List<DiyProject> loadedProjects = projectStrings.map((projectJson) {
+      Map<String, dynamic> decodedProject = jsonDecode(projectJson);
+      return DiyProject.fromJsonMap(decodedProject);
+    }).toList();
+
+    return loadedProjects;
+  }
+
+  void _deleteProject(DiyProject project) {
+    setState(() {
+      _projects.remove(project); // Remove the project from the list
+      _updateSharedPrefs(); // Update the shared preferences
+    });
+  }
+
+  Future<void> _updateSharedPrefs() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    final List<String> updatedProjects =
+        _projects.map((project) => jsonEncode(project.toJson())).toList();
+
+    await prefs.setStringList('projects', updatedProjects);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('DIY Projects'),
+        title: const Text('Home'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(text: 'Projects'),
+            Tab(text: 'Generated Projects'),
+          ],
+        ),
       ),
-      body: ListView.builder(
-        itemCount: dummyProjects.length,
-        itemBuilder: (context, index) {
-          DiyProject project = dummyProjects[index];
-          return GestureDetector(
-            onTap: () {
-              // Navigate to the details page when a project card is tapped
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProjectDetailsScreen(project: project),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          ListView.builder(
+            itemCount: dummyProjects.length,
+            itemBuilder: (context, index) {
+              DiyProject project = dummyProjects[index];
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ProjectDetailsScreen(project: project),
+                    ),
+                  );
+                },
+                child: ProjectCard(
+                  project: project,
+                  onDelete: () {
+                    _deleteProject(project);
+                  },
                 ),
               );
             },
-            child: ProjectCard(project: project),
-          );
-        },
+          ),
+          ListView.builder(
+            itemCount: _projects.length,
+            itemBuilder: (context, index) {
+              DiyProject project = _projects[index];
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ProjectDetailsScreen(project: project),
+                    ),
+                  );
+                },
+                child: ProjectCard(
+                  project: project,
+                  onDelete: () {
+                    _deleteProject(project);
+                  },
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -47,8 +145,10 @@ class _HomescreenState extends State<Homescreen> {
 
 class ProjectCard extends StatelessWidget {
   final DiyProject project;
+  final VoidCallback onDelete;
 
-  const ProjectCard({Key? key, required this.project}) : super(key: key);
+  const ProjectCard({Key? key, required this.project, required this.onDelete})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -56,23 +156,35 @@ class ProjectCard extends StatelessWidget {
       margin: const EdgeInsets.all(8.0),
       elevation: 4,
       shape: RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.circular(24.0), // Rounded corners for the card
+        borderRadius: BorderRadius.circular(24.0),
       ),
       child: Row(
         children: [
-          // Rounded corners for the image
           Padding(
-              padding: const EdgeInsets.all(6.0),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16.0),
-                child: Image.network(
-                  project.imageUrl,
-                  fit: BoxFit.cover,
-                  width: 110,
-                  height: 110,
-                ),
-              )),
+            padding: const EdgeInsets.all(6.0),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16.0),
+              child: project.imageUrl.isNotEmpty
+                  ? Image.network(
+                      project.imageUrl,
+                      fit: BoxFit.cover,
+                      width: 110,
+                      height: 110,
+                    )
+                  : GestureDetector(
+                      onTap: onDelete, // Handle delete action here
+                      child: Container(
+                        height: 75,
+                        width: 75,
+                        color: Colors.grey,
+                        child: Icon(
+                          Icons.delete,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+            ),
+          ),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(8.0),
@@ -307,60 +419,89 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       body: DefaultTabController(
         length: 2,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Image.network(
-                widget.project.imageUrl,
-                width: double.infinity, // Full width
-                height: 250, // Set a fixed height for better appearance
-                fit: BoxFit.cover,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                widget.project.description,
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Recognized speech: ${_wordsSpoken}',
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white),
-              ),
-              Row(
+              Stack(
                 children: [
-                  Icon(Icons.timer),
-                  const SizedBox(width: 4),
-                  Text('${widget.project.craftingTimeInMinute} min'),
-                  const SizedBox(width: 16),
-                  Icon(Icons.emoji_people),
-                  const SizedBox(width: 4),
-                  Text('${widget.project.ageGroup}'),
+                  widget.project.imageUrl.isNotEmpty
+                      ? Image.network(
+                          widget.project.imageUrl,
+                          width: double.infinity,
+                          height: 250,
+                          fit: BoxFit.cover,
+                        )
+                      : (const SizedBox(height: 0))
                 ],
               ),
-              const SizedBox(height: 16),
-              TabBar(
-                tabs: [
-                  Tab(
-                      text:
-                          "What You'll Need"), // You can add more tabs as needed
-                  Tab(text: 'Instructions'),
-                ],
-              ),
-              const SizedBox(height: 8),
               Container(
-                height: 300, // Set a fixed height for better appearance
-                child: TabBarView(
+                padding: EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    buildMaterialsTab(),
-                    buildInstructionsTab(),
-                    // You can add more TabBarViews as needed
+                    Text(
+                      widget.project.title,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      widget.project.description,
+                      style: TextStyle(fontSize: 18, color: Colors.white54),
+                    ),
+                    const SizedBox(height: 16),
+                    // Text(
+                    //   'Recognized speech: ${_wordsSpoken}',
+                    //   style: TextStyle(
+                    //       fontSize: 18,
+                    //       fontWeight: FontWeight.bold,
+                    //       color: Colors.white),
+                    // ),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.timer,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${widget.project.craftingTimeInMinute} min',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        const SizedBox(width: 16),
+                        Icon(
+                          Icons.emoji_people,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${widget.project.ageGroup}',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TabBar(
+                      tabs: [
+                        Tab(
+                            text:
+                                "What You'll Need"), // You can add more tabs as needed
+                        Tab(text: 'Instructions'),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      height: 300, // Set a fixed height for better appearance
+                      child: TabBarView(
+                        children: [
+                          buildMaterialsTab(),
+                          buildInstructionsTab(),
+                          // You can add more TabBarViews as needed
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-              ),
+              )
             ],
           ),
         ),
@@ -407,7 +548,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               Expanded(
                 child: Text(
                   widget.project.instructions[index],
-                  style: const TextStyle(fontSize: 16),
+                  style: const TextStyle(fontSize: 16, color: Colors.white),
                 ),
               ),
             ],
@@ -418,27 +559,19 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   }
 
   Widget buildMaterialsTab() {
-    // Implement your materials tab content here
-    return ListView.builder(
-      itemCount: widget.project.materials.length,
-      itemBuilder: (context, index) {
-        bool isChecked =
-            false; // You can set the initial checked state as needed
-
-        return CheckboxListTile(
-          title: Text(
+    return Wrap(
+      spacing: 8.0, // Horizontal spacing between tags
+      runSpacing: -4.0, // Vertical spacing between tags
+      children: List.generate(
+        widget.project.materials.length,
+        (index) => Chip(
+          backgroundColor: Colors.grey,
+          label: Text(
             widget.project.materials[index],
-            style: const TextStyle(fontSize: 16),
+            style: TextStyle(fontSize: 14, color: Colors.white),
           ),
-          value: isChecked,
-          onChanged: (value) {
-            // Handle checkbox state change if needed
-            // You can use the value parameter to update the checked state
-            // For example: setState(() { isChecked = value; });
-          },
-          controlAffinity: ListTileControlAffinity.leading,
-        );
-      },
+        ),
+      ),
     );
   }
 }
